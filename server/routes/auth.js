@@ -1,9 +1,13 @@
 const express = require('express');
 const router = express.Router();
+const dotenv = require('dotenv');
 const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { protect } = require('../middlewares/authMiddleware');
+const { sendLoginNotification } = require('../utils/email');
+
+dotenv.config();
 
 // @route   POST /api/auth/register
 // @desc    Register a user
@@ -13,6 +17,8 @@ router.post('/register', [
   body('email').isEmail().withMessage('Please include a valid email'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
   body('department').notEmpty().withMessage('Department is required'),
+  body('position').notEmpty().withMessage('Position is required'),
+  body('joiningDate').isISO8601().toDate().withMessage('Joining date is required'),
   body('role').isIn(['employee', 'manager', 'admin']).withMessage('Invalid role')
 ], async (req, res) => {
   try {
@@ -21,7 +27,7 @@ router.post('/register', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, email, password, department, role } = req.body;
+    const { name, email, password, department, role, position, joiningDate } = req.body;
 
     // Check if user exists
     let user = await User.findOne({ email });
@@ -35,7 +41,9 @@ router.post('/register', [
       email,
       password,
       department,
-      role
+      role,
+      position,
+      joiningDate
     });
 
     await user.save();
@@ -106,15 +114,14 @@ router.post('/login', [
 
     console.log('Generated token payload:', { userId: user._id.toString() });
 
-    // Ensure leaveBalance exists
+    // Ensure leaveBalance exists and update lastLogin without triggering full validation
+    const updatePayload = {
+      lastLogin: new Date(),
+    };
     if (!user.leaveBalance) {
-      user.leaveBalance = {
-        annual: 20,
-        sick: 10,
-        casual: 5
-      };
-      await user.save();
+      updatePayload.leaveBalance = { annual: 20, sick: 10, casual: 5 };
     }
+    await User.updateOne({ _id: user._id }, { $set: updatePayload }, { runValidators: false });
 
     const userResponse = {
       _id: user._id,
@@ -126,6 +133,22 @@ router.post('/login', [
     };
 
     console.log('Sending response:', { token: token.substring(0, 20) + '...', user: userResponse });
+
+    // Fire-and-forget login email notification (do not block login if email fails)
+    try {
+      console.log('Sending login email notification to:', process.env.GMAIL_USER);
+      await sendLoginNotification(
+        process.env.GMAIL_USER || user.email,
+        user.name,
+        {
+          ip: req.ip,
+          userAgent: req.headers['user-agent'],
+          timestamp: new Date().toISOString(),
+        }
+      );
+    } catch (mailErr) {
+      console.warn('Login email notification failed:', mailErr?.message || mailErr);
+    }
 
     res.json({
       token,
@@ -147,14 +170,15 @@ router.get('/me', protect, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Ensure leaveBalance exists
+    // Ensure leaveBalance exists without triggering full validation for legacy users
     if (!user.leaveBalance) {
-      user.leaveBalance = {
-        annual: 20,
-        sick: 10,
-        casual: 5
-      };
-      await user.save();
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { leaveBalance: { annual: 20, sick: 10, casual: 5 } } },
+        { runValidators: false }
+      );
+      // Refresh document after update
+      user.leaveBalance = { annual: 20, sick: 10, casual: 5 };
     }
 
     res.json(user);
@@ -207,3 +231,35 @@ router.patch('/users/:id/role', [
 });
 
 module.exports = router; 
+// Test email route (non-production only)
+if (process.env.NODE_ENV !== 'production') {
+  // Quick env check endpoint
+  router.get('/env-check', (req, res) => {
+    res.json({
+      loadedFrom: process.env._ENV_LOADED_FROM || 'unknown',
+      GMAIL_USER_present: Boolean(process.env.GMAIL_USER),
+      GMAIL_PASS_present: Boolean(process.env.GMAIL_PASS),
+      node_env: process.env.NODE_ENV || 'undefined'
+    });
+  });
+
+  router.get('/test-email', async (req, res) => {
+    try {
+      if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
+        return res.status(400).json({ message: 'Missing GMAIL_USER or GMAIL_PASS in env' });
+      }
+      await sendLoginNotification(
+        process.env.GMAIL_USER,
+        'Test User',
+        {
+          ip: req.ip,
+          userAgent: req.headers['user-agent'],
+          timestamp: new Date().toISOString(),
+        }
+      );
+      return res.json({ message: `Test email sent to ${process.env.GMAIL_USER}` });
+    } catch (e) {
+      return res.status(500).json({ message: e?.message || 'Failed to send test email' });
+    }
+  });
+}

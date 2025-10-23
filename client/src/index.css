@@ -34,6 +34,52 @@
   .input {
     @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-main focus:border-transparent;
   }
+
+  /* Chart container styles */
+  .chart-container {
+    @apply relative w-full h-full;
+  }
+
+  /* Dashboard card hover effects */
+  .dashboard-card {
+    @apply bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-1;
+  }
+
+  /* Stat card styles */
+  .stat-card {
+    @apply bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-all duration-200;
+  }
+
+  /* Progress bar styles */
+  .progress-bar {
+    @apply w-full bg-gray-200 rounded-full h-2;
+  }
+
+  .progress-fill {
+    @apply h-2 rounded-full transition-all duration-300;
+  }
+
+  /* Status badge styles */
+  .status-badge {
+    @apply px-2 py-1 text-xs font-medium rounded-full;
+  }
+
+  .status-approved {
+    @apply bg-green-100 text-green-800;
+  }
+
+  .status-pending {
+    @apply bg-orange-100 text-orange-800;
+  }
+
+  .status-rejected {
+    @apply bg-red-100 text-red-800;
+  }
+
+  /* Loading spinner */
+  .loading-spinner {
+    @apply animate-spin rounded-full h-8 w-8 border-b-2 border-primary-main;
+  }
 }
 
 code {

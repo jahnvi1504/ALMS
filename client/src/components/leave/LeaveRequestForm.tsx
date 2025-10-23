@@ -38,35 +38,33 @@ const LeaveRequestForm: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const calculateTotalDays = (startDate: Date, endDate: Date): number => {
-    return differenceInDays(endDate, startDate) + 1; // +1 to include both start and end dates
+    return differenceInDays(endDate, startDate) + 1;
   };
 
   const handleSubmit = async (values: LeaveRequestData) => {
     try {
       setError(null);
       setIsSubmitting(true);
-      
+
       const startDate = new Date(values.startDate);
       const endDate = new Date(values.endDate);
-      
-      // Format dates as YYYY-MM-DD and calculate total days
+
       const formattedValues = {
         ...values,
         startDate: format(startDate, 'yyyy-MM-dd'),
         endDate: format(endDate, 'yyyy-MM-dd'),
         totalDays: calculateTotalDays(startDate, endDate),
       };
-      
+
       const response = await createLeaveRequest(formattedValues);
-      
-      // Emit socket event for leave request submission
+
       notificationService.emitLeaveRequest({
         employeeId: user?._id,
         employeeName: user?.name,
         department: user?.department,
-        leaveRequest: response
+        leaveRequest: response,
       });
-      
+
       navigate('/leave/history');
     } catch (err: any) {
       if (err.errors) {
@@ -85,40 +83,50 @@ const LeaveRequestForm: React.FC = () => {
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-6">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+        {/* Title */}
+        <h1 className="text-3xl font-bold text-gray-900 mb-6 border-b pb-3">
           Request Leave
         </h1>
 
-        <div className="mb-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-3">
-            Leave Balance:
+        {/* Leave Balance */}
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">
+            Your Leave Balance
           </h2>
-          <Grid container spacing={2}>
-            <Grid item xs={4}>
-              <p className="text-gray-600">
-                Annual: {user.leaveBalance.annual} days
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-gray-50 rounded-lg p-4 shadow-sm text-center">
+              <p className="text-sm text-gray-500">Annual</p>
+              <p className="text-xl font-bold text-gray-900">
+                {user.leaveBalance.annual}
               </p>
-            </Grid>
-            <Grid item xs={4}>
-              <p className="text-gray-600">
-                Sick: {user.leaveBalance.sick} days
+              <p className="text-xs text-gray-500">days</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4 shadow-sm text-center">
+              <p className="text-sm text-gray-500">Sick</p>
+              <p className="text-xl font-bold text-gray-900">
+                {user.leaveBalance.sick}
               </p>
-            </Grid>
-            <Grid item xs={4}>
-              <p className="text-gray-600">
-                Casual: {user.leaveBalance.casual} days
+              <p className="text-xs text-gray-500">days</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4 shadow-sm text-center">
+              <p className="text-sm text-gray-500">Casual</p>
+              <p className="text-xl font-bold text-gray-900">
+                {user.leaveBalance.casual}
               </p>
-            </Grid>
-          </Grid>
+              <p className="text-xs text-gray-500">days</p>
+            </div>
+          </div>
         </div>
 
+        {/* Error Message */}
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-600">{error}</p>
+          <div className="mb-6 p-4 bg-red-100 border border-red-200 rounded-lg">
+            <p className="text-red-700 font-medium">{error}</p>
           </div>
         )}
 
+        {/* Form */}
         <Formik
           initialValues={{
             startDate: '',
@@ -130,67 +138,96 @@ const LeaveRequestForm: React.FC = () => {
           onSubmit={handleSubmit}
         >
           {({ errors, touched, setFieldValue, values }) => {
-            // Calculate and display total days when both dates are selected
-            const totalDays = values.startDate && values.endDate
-              ? calculateTotalDays(new Date(values.startDate), new Date(values.endDate))
-              : 0;
+            const totalDays =
+              values.startDate && values.endDate
+                ? calculateTotalDays(
+                    new Date(values.startDate),
+                    new Date(values.endDate)
+                  )
+                : 0;
 
             return (
               <Form className="space-y-6">
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={6}>
-                    <div>
-                      <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
-                        Start Date
-                      </label>
-                      <input
-                        type="date"
-                        id="startDate"
-                        name="startDate"
-                        value={values.startDate}
-                        onChange={(e) => setFieldValue('startDate', e.target.value)}
-                        className={`input ${errors.startDate && touched.startDate ? 'border-red-500' : ''}`}
-                      />
-                      {errors.startDate && touched.startDate && (
-                        <p className="mt-1 text-sm text-red-500">{errors.startDate}</p>
-                      )}
-                    </div>
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <div>
-                      <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
-                        End Date
-                      </label>
-                      <input
-                        type="date"
-                        id="endDate"
-                        name="endDate"
-                        value={values.endDate}
-                        onChange={(e) => setFieldValue('endDate', e.target.value)}
-                        className={`input ${errors.endDate && touched.endDate ? 'border-red-500' : ''}`}
-                      />
-                      {errors.endDate && touched.endDate && (
-                        <p className="mt-1 text-sm text-red-500">{errors.endDate}</p>
-                      )}
-                    </div>
-                  </Grid>
-                </Grid>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Start Date */}
+                  <div>
+                    <label
+                      htmlFor="startDate"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      id="startDate"
+                      name="startDate"
+                      value={values.startDate}
+                      onChange={(e) => setFieldValue('startDate', e.target.value)}
+                      className={`w-full rounded-lg border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 px-3 py-2 shadow-sm ${
+                        errors.startDate && touched.startDate
+                          ? 'border-red-500'
+                          : ''
+                      }`}
+                    />
+                    {errors.startDate && touched.startDate && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {errors.startDate}
+                      </p>
+                    )}
+                  </div>
 
+                  {/* End Date */}
+                  <div>
+                    <label
+                      htmlFor="endDate"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      id="endDate"
+                      name="endDate"
+                      value={values.endDate}
+                      onChange={(e) => setFieldValue('endDate', e.target.value)}
+                      className={`w-full rounded-lg border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 px-3 py-2 shadow-sm ${
+                        errors.endDate && touched.endDate
+                          ? 'border-red-500'
+                          : ''
+                      }`}
+                    />
+                    {errors.endDate && touched.endDate && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {errors.endDate}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Total Days */}
                 {totalDays > 0 && (
-                  <p className="text-sm text-gray-500">
-                    Total Days: {totalDays}
-                  </p>
+                  <div className="text-sm text-gray-600 bg-gray-50 rounded-md px-4 py-2 inline-block">
+                    Total Days: <span className="font-semibold">{totalDays}</span>
+                  </div>
                 )}
 
+                {/* Leave Type */}
                 <div>
-                  <label htmlFor="leaveType" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="leaveType"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Leave Type
                   </label>
                   <Field
                     as="select"
                     id="leaveType"
                     name="leaveType"
-                    className={`input ${errors.leaveType && touched.leaveType ? 'border-red-500' : ''}`}
+                    className={`w-full rounded-lg border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 px-3 py-2 shadow-sm ${
+                      errors.leaveType && touched.leaveType
+                        ? 'border-red-500'
+                        : ''
+                    }`}
                   >
                     {leaveTypes.map((type) => (
                       <option key={type.value} value={type.value}>
@@ -199,12 +236,18 @@ const LeaveRequestForm: React.FC = () => {
                     ))}
                   </Field>
                   {errors.leaveType && touched.leaveType && (
-                    <p className="mt-1 text-sm text-red-500">{errors.leaveType}</p>
+                    <p className="mt-1 text-sm text-red-500">
+                      {errors.leaveType}
+                    </p>
                   )}
                 </div>
 
+                {/* Reason */}
                 <div>
-                  <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="reason"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Reason
                   </label>
                   <Field
@@ -212,18 +255,21 @@ const LeaveRequestForm: React.FC = () => {
                     id="reason"
                     name="reason"
                     rows={4}
-                    className={`input ${errors.reason && touched.reason ? 'border-red-500' : ''}`}
+                    className={`w-full rounded-lg border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 px-3 py-2 shadow-sm ${
+                      errors.reason && touched.reason ? 'border-red-500' : ''
+                    }`}
                   />
                   {errors.reason && touched.reason && (
                     <p className="mt-1 text-sm text-red-500">{errors.reason}</p>
                   )}
                 </div>
 
+                {/* Submit */}
                 <div className="flex justify-end">
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="btn btn-primary"
+                    className="px-6 py-2.5 rounded-lg bg-blue-600 text-white font-medium shadow-md hover:bg-blue-700 transition-all duration-200 disabled:opacity-60"
                   >
                     {isSubmitting ? 'Submitting...' : 'Submit Request'}
                   </button>
@@ -237,4 +283,4 @@ const LeaveRequestForm: React.FC = () => {
   );
 };
 
-export default LeaveRequestForm; 
+export default LeaveRequestForm;

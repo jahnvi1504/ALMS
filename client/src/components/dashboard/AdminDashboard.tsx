@@ -11,8 +11,12 @@ import {
   PendingActions as PendingIcon,
   Business as BusinessIcon,
   CalendarMonth as CalendarIcon,
+  TrendingUp,
+  Analytics,
 } from '@mui/icons-material';
 import { RootState } from '../../store';
+import { getAdminDetailedStats, getAdminDashboardStats } from '../../services/statisticsService';
+import { LineChart, DoughnutChart, BarChart, formatMonthlyTrendsData, formatStatusDistributionData, formatLeaveTypeData, formatDepartmentStatsData } from '../charts/DashboardCharts';
 
 interface DashboardStats {
   totalUsers: number;
@@ -79,21 +83,24 @@ const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [detailedStats, setDetailedStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchDashboardStats = async () => {
+    const fetchDashboardData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const token = sessionStorage.getItem('token');
-        const response = await axios.get('http://localhost:5000/api/admin/dashboard', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setStats(response.data);
+        
+        // Fetch basic dashboard stats
+        const basicStats = await getAdminDashboardStats();
+        setStats(basicStats);
+        
+        // Fetch detailed statistics for charts
+        const detailed = await getAdminDetailedStats();
+        setDetailedStats(detailed);
+        
       } catch (error: any) {
         console.error('Error fetching dashboard stats:', error);
         setError(error.response?.data?.message || 'Failed to fetch dashboard statistics');
@@ -102,7 +109,7 @@ const AdminDashboard: React.FC = () => {
       }
     };
 
-    fetchDashboardStats();
+    fetchDashboardData();
   }, []);
 
   if (!user) {
@@ -210,26 +217,123 @@ const AdminDashboard: React.FC = () => {
           ))}
         </div>
 
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Monthly Leave Trends */}
+          {detailedStats?.monthlyTrends && detailedStats.monthlyTrends.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Organization Leave Trends</h3>
+              <LineChart 
+                data={formatMonthlyTrendsData(detailedStats.monthlyTrends, 'Monthly Leave Requests')}
+                height={300}
+              />
+            </div>
+          )}
+
+          {/* Leave Status Distribution */}
+          {detailedStats?.leaveStatusStats && detailedStats.leaveStatusStats.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Overall Leave Status Distribution</h3>
+              <DoughnutChart 
+                data={formatStatusDistributionData(detailedStats.leaveStatusStats)}
+                height={300}
+              />
+            </div>
+          )}
+
+          {/* Leave Type Distribution */}
+          {detailedStats?.leaveTypeStats && detailedStats.leaveTypeStats.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Leave Type Distribution</h3>
+              <DoughnutChart 
+                data={formatLeaveTypeData(detailedStats.leaveTypeStats)}
+                height={300}
+              />
+            </div>
+          )}
+
+          {/* Department-wise Statistics */}
+          {detailedStats?.departmentStats && detailedStats.departmentStats.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Department-wise Leave Statistics</h3>
+              <BarChart 
+                data={formatDepartmentStatsData(detailedStats.departmentStats)}
+                height={300}
+              />
+            </div>
+          )}
+        </div>
+
         {/* User Role Distribution */}
         {stats?.userRoles && (
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">User Role Distribution</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Employees</p>
-                <p className="text-2xl font-bold text-blue-600">{stats.userRoles.employee}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Employees</p>
+                    <p className="text-2xl font-bold text-blue-600">{stats.userRoles.employee}</p>
+                  </div>
+                  <PeopleIcon className="text-blue-500 text-2xl" />
+                </div>
               </div>
               <div className="bg-green-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Managers</p>
-                <p className="text-2xl font-bold text-green-600">{stats.userRoles.manager}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Managers</p>
+                    <p className="text-2xl font-bold text-green-600">{stats.userRoles.manager}</p>
+                  </div>
+                  <TrendingUp className="text-green-500 text-2xl" />
+                </div>
               </div>
               <div className="bg-purple-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Admins</p>
-                <p className="text-2xl font-bold text-purple-600">{stats.userRoles.admin}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Admins</p>
+                    <p className="text-2xl font-bold text-purple-600">{stats.userRoles.admin}</p>
+                  </div>
+                  <Analytics className="text-purple-500 text-2xl" />
+                </div>
               </div>
             </div>
           </div>
         )}
+
+        {/* System Overview */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">System Overview</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div>
+                <p className="text-sm text-gray-600">Total Users</p>
+                <p className="text-xl font-bold text-gray-900">{stats?.totalUsers || 0}</p>
+              </div>
+              <GroupIcon className="text-gray-500" />
+            </div>
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div>
+                <p className="text-sm text-gray-600">Departments</p>
+                <p className="text-xl font-bold text-gray-900">{stats?.departments || 0}</p>
+              </div>
+              <BusinessIcon className="text-gray-500" />
+            </div>
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div>
+                <p className="text-sm text-gray-600">Pending Requests</p>
+                <p className="text-xl font-bold text-gray-900">{stats?.pendingRequests || 0}</p>
+              </div>
+              <PendingIcon className="text-gray-500" />
+            </div>
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div>
+                <p className="text-sm text-gray-600">Holidays This Month</p>
+                <p className="text-xl font-bold text-gray-900">{stats?.holidaysThisMonth || 0}</p>
+              </div>
+              <CalendarIcon className="text-gray-500" />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

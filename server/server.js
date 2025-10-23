@@ -2,12 +2,30 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const path = require("path");
+const fs = require("fs");
 const http = require("http");
 const socketIo = require("socket.io");
 const { Server } = require("socket.io");
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from multiple common locations
+(() => {
+    const envCandidates = [
+        path.join(__dirname, ".env"), // server/.env
+        path.join(__dirname, "..", ".env"), // project-root/.env
+    ];
+    let loadedFrom = [];
+    envCandidates.forEach((p) => {
+        if (fs.existsSync(p)) {
+            dotenv.config({ path: p, override: false });
+            loadedFrom.push(p);
+        }
+    });
+    console.log(`[env] Loaded .env from: ${loadedFrom.length ? loadedFrom.join(", ") : "none"}`);
+    console.log(`[env] GMAIL_USER present: ${process.env.GMAIL_USER ? "yes" : "no"}`);
+    // Expose for diagnostics
+    process.env._ENV_LOADED_FROM = loadedFrom.join("|");
+})();
 
 const app = express();
 const server = http.createServer(app);

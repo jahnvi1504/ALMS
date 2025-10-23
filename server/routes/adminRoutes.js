@@ -105,4 +105,243 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// Enhanced statistics for visualizations
+router.get('/stats/detailed', async (req, res) => {
+  try {
+    // Leave status distribution
+    const leaveStatusStats = await LeaveRequest.aggregate([
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Leave type distribution
+    const leaveTypeStats = await LeaveRequest.aggregate([
+      {
+        $group: {
+          _id: '$leaveType',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Department-wise leave statistics
+    const departmentStats = await LeaveRequest.aggregate([
+      {
+        $group: {
+          _id: '$department',
+          totalRequests: { $sum: 1 },
+          approvedRequests: {
+            $sum: { $cond: [{ $eq: ['$status', 'approved'] }, 1, 0] }
+          },
+          pendingRequests: {
+            $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
+          },
+          rejectedRequests: {
+            $sum: { $cond: [{ $eq: ['$status', 'rejected'] }, 1, 0] }
+          }
+        }
+      }
+    ]);
+
+    // Monthly leave trends (last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    
+    const monthlyTrends = await LeaveRequest.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: sixMonthsAgo }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' }
+          },
+          count: { $sum: 1 },
+          approved: {
+            $sum: { $cond: [{ $eq: ['$status', 'approved'] }, 1, 0] }
+          },
+          rejected: {
+            $sum: { $cond: [{ $eq: ['$status', 'rejected'] }, 1, 0] }
+          }
+        }
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1 }
+      }
+    ]);
+
+    // User role distribution with department
+    const userRoleDeptStats = await User.aggregate([
+      {
+        $group: {
+          _id: {
+            role: '$role',
+            department: '$department'
+          },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    res.json({
+      leaveStatusStats,
+      leaveTypeStats,
+      departmentStats,
+      monthlyTrends,
+      userRoleDeptStats
+    });
+  } catch (error) {
+    console.error('Error fetching detailed stats:', error);
+    res.status(500).json({ message: 'Error fetching detailed statistics' });
+  }
+});
+
+// Manager-specific statistics
+router.get('/manager/stats', async (req, res) => {
+  try {
+    const managerId = req.user._id;
+    
+    // Get manager's department
+    const manager = await User.findById(managerId);
+    if (!manager) {
+      return res.status(404).json({ message: 'Manager not found' });
+    }
+
+    // Department leave statistics
+    const departmentStats = await LeaveRequest.aggregate([
+      {
+        $match: { department: manager.department }
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Recent leave requests in department
+    const recentRequests = await LeaveRequest.find({ 
+      department: manager.department 
+    })
+    .populate('employee', 'name email')
+    .sort({ createdAt: -1 })
+    .limit(10);
+
+    // Monthly department trends
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    
+    const monthlyDeptTrends = await LeaveRequest.aggregate([
+      {
+        $match: {
+          department: manager.department,
+          createdAt: { $gte: threeMonthsAgo }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1 }
+      }
+    ]);
+
+    res.json({
+      departmentStats,
+      recentRequests,
+      monthlyDeptTrends,
+      department: manager.department
+    });
+  } catch (error) {
+    console.error('Error fetching manager stats:', error);
+    res.status(500).json({ message: 'Error fetching manager statistics' });
+  }
+});
+
+// Employee-specific statistics
+router.get('/employee/stats', async (req, res) => {
+  try {
+    const employeeId = req.user._id;
+    
+    // Employee's leave history
+    const leaveHistory = await LeaveRequest.find({ employee: employeeId })
+      .sort({ createdAt: -1 });
+
+    // Leave status distribution for employee
+    const leaveStatusStats = await LeaveRequest.aggregate([
+      {
+        $match: { employee: employeeId }
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Leave type distribution for employee
+    const leaveTypeStats = await LeaveRequest.aggregate([
+      {
+        $match: { employee: employeeId }
+      },
+      {
+        $group: {
+          _id: '$leaveType',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Monthly leave trends for employee (last 12 months)
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+    
+    const monthlyTrends = await LeaveRequest.aggregate([
+      {
+        $match: {
+          employee: employeeId,
+          createdAt: { $gte: twelveMonthsAgo }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1 }
+      }
+    ]);
+
+    res.json({
+      leaveHistory,
+      leaveStatusStats,
+      leaveTypeStats,
+      monthlyTrends
+    });
+  } catch (error) {
+    console.error('Error fetching employee stats:', error);
+    res.status(500).json({ message: 'Error fetching employee statistics' });
+  }
+});
+
 module.exports = router; 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -8,8 +8,12 @@ import {
   EmojiEvents,
   LocalHospital,
   BeachAccess,
+  TrendingUp,
+  Assessment,
 } from '@mui/icons-material';
 import { RootState } from '../../store';
+import { getEmployeeStats } from '../../services/statisticsService';
+import { LineChart, DoughnutChart, formatMonthlyTrendsData, formatStatusDistributionData, formatLeaveTypeData } from '../charts/DashboardCharts';
 
 const LeaveBalanceCard: React.FC<{ type: string; days: number; icon: React.ReactNode; color: string }> = ({ type, days, icon, color }) => {
   const maxDays = type === 'annual' ? 20 : type === 'sick' ? 10 : 5;
@@ -64,9 +68,47 @@ const QuickActionButton: React.FC<{
   </button>
 );
 
+const StatCard: React.FC<{
+  title: string;
+  value: number;
+  icon: React.ReactNode;
+  color: string;
+}> = ({ title, value, icon, color }) => (
+  <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-all duration-200">
+    <div className="flex items-center justify-between mb-4">
+      <div className={`p-3 rounded-full ${color}`}>
+        {icon}
+      </div>
+      <span className="text-3xl font-bold text-gray-900">{value}</span>
+    </div>
+    <p className="text-sm text-gray-600">{title}</p>
+  </div>
+);
+
 const EmployeeDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getEmployeeStats();
+        setStats(data);
+      } catch (error: any) {
+        console.error('Error fetching employee stats:', error);
+        setError(error.response?.data?.message || 'Failed to fetch statistics');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   if (!user) {
     return null;
@@ -77,6 +119,28 @@ const EmployeeDashboard: React.FC = () => {
     sick: 0,
     casual: 0
   };
+
+  // Calculate summary statistics
+  const totalRequests = stats?.leaveHistory?.length || 0;
+  const approvedRequests = stats?.leaveStatusStats?.find((s: any) => s._id === 'approved')?.count || 0;
+  const pendingRequests = stats?.leaveStatusStats?.find((s: any) => s._id === 'pending')?.count || 0;
+  const rejectedRequests = stats?.leaveStatusStats?.find((s: any) => s._id === 'rejected')?.count || 0;
+
+  if (loading) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="text-center">Loading dashboard statistics...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="text-red-500 text-center">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -89,6 +153,34 @@ const EmployeeDashboard: React.FC = () => {
           <p className="text-white/90">
             {user.department} Department
           </p>
+        </div>
+
+        {/* Summary Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <StatCard
+            title="Total Requests"
+            value={totalRequests}
+            icon={<Assessment className="text-blue-500" />}
+            color="bg-blue-100"
+          />
+          <StatCard
+            title="Approved"
+            value={approvedRequests}
+            icon={<TrendingUp className="text-green-500" />}
+            color="bg-green-100"
+          />
+          <StatCard
+            title="Pending"
+            value={pendingRequests}
+            icon={<EventNote className="text-orange-500" />}
+            color="bg-orange-100"
+          />
+          <StatCard
+            title="Rejected"
+            value={rejectedRequests}
+            icon={<History className="text-red-500" />}
+            color="bg-red-100"
+          />
         </div>
 
         {/* Leave Balance Cards */}
@@ -111,6 +203,80 @@ const EmployeeDashboard: React.FC = () => {
             icon={<EmojiEvents className="text-secondary-main" />}
             color="#9c27b0"
           />
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Monthly Trends */}
+          {stats?.monthlyTrends && stats.monthlyTrends.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Leave Request Trends</h3>
+              <LineChart 
+                data={formatMonthlyTrendsData(stats.monthlyTrends, 'Monthly Leave Requests')}
+                height={300}
+              />
+            </div>
+          )}
+
+          {/* Leave Status Distribution */}
+          {stats?.leaveStatusStats && stats.leaveStatusStats.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Request Status Distribution</h3>
+              <DoughnutChart 
+                data={formatStatusDistributionData(stats.leaveStatusStats)}
+                height={300}
+              />
+            </div>
+          )}
+
+          {/* Leave Type Distribution */}
+          {stats?.leaveTypeStats && stats.leaveTypeStats.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Leave Type Distribution</h3>
+              <DoughnutChart 
+                data={formatLeaveTypeData(stats.leaveTypeStats)}
+                height={300}
+              />
+            </div>
+          )}
+
+          {/* Recent Leave History */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Leave History</h3>
+            {stats?.leaveHistory && stats.leaveHistory.length > 0 ? (
+              <div className="space-y-3">
+                {stats.leaveHistory.slice(0, 5).map((leave: any) => (
+                  <div key={leave._id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-gray-900 capitalize">{leave.leaveType} Leave</p>
+                      <p className="text-sm text-gray-500">
+                        {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      leave.status === 'approved' ? 'bg-green-100 text-green-800' :
+                      leave.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                      'bg-orange-100 text-orange-800'
+                    }`}>
+                      {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
+                    </span>
+                  </div>
+                ))}
+                {stats.leaveHistory.length > 5 && (
+                  <button
+                    onClick={() => navigate('/leave/history')}
+                    className="w-full py-2 text-sm font-medium text-primary-main hover:text-primary-dark transition-colors duration-200"
+                  >
+                    View All History →
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No leave history available
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Quick Actions */}

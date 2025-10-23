@@ -98,6 +98,141 @@ router.get('/pending', auth, async (req, res) => {
     }
 });
 
+// Manager-specific statistics
+router.get('/manager/stats', auth, async (req, res) => {
+    try {
+        if (req.user.role !== 'manager') {
+            return res.status(403).json({ message: 'Not authorized to view manager statistics' });
+        }
+
+        // Department leave statistics
+        const departmentStats = await LeaveRequest.aggregate([
+            {
+                $match: { department: req.user.department }
+            },
+            {
+                $group: {
+                    _id: '$status',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        // Recent leave requests in department
+        const recentRequests = await LeaveRequest.find({ 
+            department: req.user.department 
+        })
+        .populate('employee', 'name email')
+        .sort({ createdAt: -1 })
+        .limit(10);
+
+        // Monthly department trends
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+        
+        const monthlyDeptTrends = await LeaveRequest.aggregate([
+            {
+                $match: {
+                    department: req.user.department,
+                    createdAt: { $gte: threeMonthsAgo }
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        year: { $year: '$createdAt' },
+                        month: { $month: '$createdAt' }
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $sort: { '_id.year': 1, '_id.month': 1 }
+            }
+        ]);
+
+        res.json({
+            departmentStats,
+            recentRequests,
+            monthlyDeptTrends,
+            department: req.user.department
+        });
+    } catch (error) {
+        console.error('Error fetching manager stats:', error);
+        res.status(500).json({ message: 'Error fetching manager statistics' });
+    }
+});
+
+// Employee-specific statistics
+router.get('/employee/stats', auth, async (req, res) => {
+    try {
+        // Employee's leave history
+        const leaveHistory = await LeaveRequest.find({ employee: req.user._id })
+            .sort({ createdAt: -1 });
+
+        // Leave status distribution for employee
+        const leaveStatusStats = await LeaveRequest.aggregate([
+            {
+                $match: { employee: req.user._id }
+            },
+            {
+                $group: {
+                    _id: '$status',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        // Leave type distribution for employee
+        const leaveTypeStats = await LeaveRequest.aggregate([
+            {
+                $match: { employee: req.user._id }
+            },
+            {
+                $group: {
+                    _id: '$leaveType',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        // Monthly leave trends for employee (last 12 months)
+        const twelveMonthsAgo = new Date();
+        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+        
+        const monthlyTrends = await LeaveRequest.aggregate([
+            {
+                $match: {
+                    employee: req.user._id,
+                    createdAt: { $gte: twelveMonthsAgo }
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        year: { $year: '$createdAt' },
+                        month: { $month: '$createdAt' }
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $sort: { '_id.year': 1, '_id.month': 1 }
+            }
+        ]);
+
+        res.json({
+            leaveHistory,
+            leaveStatusStats,
+            leaveTypeStats,
+            monthlyTrends
+        });
+    } catch (error) {
+        console.error('Error fetching employee stats:', error);
+        res.status(500).json({ message: 'Error fetching employee statistics' });
+    }
+});
+
 // Create leave request
 router.post('/', auth, async (req, res) => {
     try {
