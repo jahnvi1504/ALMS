@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const dotenv = require('dotenv');
-const { body, validationResult } = require('express-validator');
+const { body, validationResult } = require('express-validator'); // <-- Validation library
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { protect } = require('../middlewares/authMiddleware');
@@ -9,18 +9,23 @@ const { sendLoginNotification } = require('../utils/email');
 
 dotenv.config();
 
-// @route   POST /api/auth/register
-// @desc    Register a user
-// @access  Public
+// @route   POST /api/auth/register
+// @desc    Register a user
+// @access  Public
 router.post('/register', [
-  body('name').notEmpty().withMessage('Name is required'),
-  body('email').isEmail().withMessage('Please include a valid email'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
-  body('department').notEmpty().withMessage('Department is required'),
-  body('position').notEmpty().withMessage('Position is required'),
-  body('joiningDate').isISO8601().toDate().withMessage('Joining date is required'),
-  body('role').isIn(['employee', 'manager', 'admin']).withMessage('Invalid role')
+  body('name').notEmpty().withMessage('Name is required'),
+  body('email').isEmail().withMessage('Please include a valid email'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+  body('department').notEmpty().withMessage('Department is required'),
+  body('position')
+    .optional({ nullable: true, checkFalsy: true }) // <-- FIX 1: Make optional
+    .notEmpty().withMessage('Position is required'), // This will only run if provided
+  body('joiningDate')
+    .optional({ nullable: true, checkFalsy: true }) // <-- FIX 2: Make optional
+    .isISO8601().toDate().withMessage('Joining date must be a valid date'), // Change message for clarity
+  body('role').isIn(['employee', 'manager', 'admin']).withMessage('Invalid role')
 ], async (req, res) => {
+// ... rest of the register function (no changes needed here)
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {

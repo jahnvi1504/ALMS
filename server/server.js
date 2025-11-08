@@ -210,3 +210,4 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Export for Vercel
 module.exports = app;
+console.log('Using JWT Secret:', process.env.JWT_SECRET);

@@ -29,11 +29,11 @@ const userSchema = new mongoose.Schema({
   },
   position: {
     type: String,
-    required: true
+    required: false
   },
   joiningDate: {
     type: Date,
-    required: true
+    required: false
   },
   leaveBalance: {
     annual: { type: Number, default: 20 },
