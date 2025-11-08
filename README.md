@@ -1,204 +1,129 @@
 # 🗓️ Online Leave Management System (MERN Stack)
 
-A web-based leave application and approval system for organizations. This system allows employees to apply for leave, and managers to review, approve, or reject requests. It features real-time notifications, automatic holiday blocking, and a user-friendly dashboard for each role.
+A professional web-based **Leave Application and Approval System** designed for modern organizations. This MERN stack application streamlines the process for employees to apply for leave and for managers to efficiently review and manage requests. It is built with **Role-Based Access Control (RBAC)** and features like automatic holiday blocking and real-time status updates.
 
 ---
 
-## 📌 Key Features
+## ✨ Key Features & Functionality
 
-### 👨‍💼 For Employees:
-- Register and log in securely
-- Apply for leave (select start & end dates, add reason)
-- View personal leave history and application status
-- View upcoming holidays
-- Receive notifications when leave is approved/rejected
+### 👨‍💼 Employee Portal
+* **Secure Authentication:** Register and log in using **JWT-based authentication**.
+* **Leave Application:** Apply for leave by specifying dates and providing a reason.
+* **History & Status:** View personal leave application history and track the current status (pending, approved, rejected).
+* **Holiday View:** Access a list of upcoming company holidays.
+* **Notifications:** Receive real-time alerts upon manager approval or rejection of a request.
 
-### 👩‍💼 For Managers:
-- Login with manager privileges
-- View list of all employee leave requests
-- Approve or reject requests
-- View team availability calendar
+### 👩‍💼 Manager Portal
+* **Privileged Access:** Login with exclusive manager privileges.
+* **Request Management:** View a comprehensive list of all pending employee leave requests.
+* **Decision Making:** Easily **approve or reject** requests.
+* **Team Calendar:** View a calendar showing team availability to prevent overlapping leaves.
 
-### 🔒 System-wide:
-- Role-based access control
-- JWT-based authentication
-- MongoDB for data storage
-- Socket.io or polling for real-time notifications
-- Holiday-based auto-blocking (cannot apply on public holidays)
+### 🔒 System Architecture
+* **Role-Based Access Control (RBAC):** Ensures users only access features relevant to their role (`employee` or `manager`).
+* **Data Security:** Passwords are **hashed** and communication is secured via **JWT**.
+* **Auto-Blocking:** Employees are prevented from applying for leave on pre-defined public holidays.
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer        | Tech Used                        |
-|--------------|----------------------------------|
-| Frontend     | React.js, Axios, React Router    |
-| Backend      | Node.js, Express.js              |
-| Database     | MongoDB, Mongoose                |
-| Authentication | JWT                            |
-| Styling      | Tailwind CSS / Bootstrap         |
-| Real-time Notification | Socket.io (optional)   |
+This project is powered by the **MERN** (MongoDB, Express, React, Node) stack.
+
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend** | **React.js, Axios, React Router** | Building dynamic UIs and handling API requests. |
+| **Backend** | **Node.js, Express.js** | High-performance server-side logic and API routing. |
+| **Database** | **MongoDB, Mongoose** | NoSQL data storage and object data modeling. |
+| **Authentication** | **JSON Web Tokens (JWT)** | Secure, state-less user session management. |
+| **Styling** | **Tailwind CSS / Bootstrap** | Rapid, responsive, and utility-first styling. |
+| **Real-time** | **Socket.io** (Optional) | Enabling instant notifications. |
 
 ---
 
-## 🧾 Database Schemas (Mongoose)
+## 📂 Database Schema Overview (Mongoose Models)
 
-### 🔐 User Model
-```js
-{
-  name: String,
-  email: String,
-  password: String, // Hashed
-  role: 'employee' | 'manager',
-  leaveBalance: Number
-}
-```
+The data models define the structure of the information stored in the MongoDB database:
 
-### 📄 LeaveRequest Model
+### **User Model Fields**
+The user model includes fields for: `name`, `email`, `password` (which is stored Hashed), `role` (either 'employee' or 'manager'), and `leaveBalance` (a Number).
 
-```js
-{
-  employeeId: ObjectId,
-  fromDate: Date,
-  toDate: Date,
-  reason: String,
-  status: 'pending' | 'approved' | 'rejected',
-  managerId: ObjectId,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
+### **LeaveRequest Model Fields**
+This model tracks applications with: `employeeId` (ObjectId), `fromDate` (Date), `toDate` (Date), `reason` (String), `status` (which can be 'pending', 'approved', or 'rejected'), `managerId` (ObjectId), `createdAt` (Date), and `updatedAt` (Date).
 
-### 🎉 Holiday Model
-
-```js
-{
-  date: Date,
-  title: String
-}
-```
-
----
-
-## 📂 Folder Structure
-
-```
-leave-management/
-├── client/             # React frontend
-│   ├── public/
-│   └── src/
-│       ├── components/
-│       ├── pages/
-│       ├── services/
-│       └── App.jsx
-├── server/             # Node + Express backend
-│   ├── controllers/
-│   ├── models/
-│   ├── routes/
-│   ├── middleware/
-│   └── server.js
-├── .env
-├── README.md
-└── package.json
-```
+### **Holiday Model Fields**
+This simple model contains: `date` (Date) and `title` (String).
 
 ---
 
 ## 🚀 Getting Started
 
-### 1. Clone the repository
+Follow these steps to set up and run the project locally.
 
-```bash
-git clone https://github.com/Mantu008/leave-management.git
-cd leave-management
-```
+### 1. Clone the Repository
+
+To get the project files, you need to use the Git clone command and then change into the project directory:
+
+`git clone https://github.com/Mantu008/leave-management.git`
+`cd leave-management`
 
 ### 2. Install Dependencies
 
-```bash
-# Backend setup
-cd server
-npm install
+You must install dependencies separately for both the backend (`server`) and the frontend (`client`).
 
-# Frontend setup
-cd ../client
-npm install
-```
+**Backend setup**
+`cd server`
+`npm install`
 
-### 3. Create `.env` File in `/server`
+**Frontend setup**
+`cd ../client`
+`npm install`
 
-```env
-PORT=5000
-MONGO_URI=your_mongodb_uri
-JWT_SECRET=your_jwt_secret
-```
+### 3. Configure Environment Variables
 
-### 4. Run the App
+Create a file named `.env` inside the `/server` directory and populate it with your specific connection details:
 
-```bash
-# Start backend
-cd server
-npm run dev
+**The .env file should contain:**
+`PORT=5000`
+`MONGO_URI=your_mongodb_connection_string`
+`JWT_SECRET=a_strong_secret_key_for_jwt`
 
-# Start frontend
-cd ../client
-npm start
-```
+### 4. Run the Application
 
----
+Start the server and client separately to run the full application.
 
-## 🔐 Authentication & Authorization
+**Start backend (API server)**
+`cd server`
+`npm run dev`
+*(The server runs on http://localhost:5000)*
 
-* Uses JWT for secure login sessions
-* Role-based route access (employee vs manager)
-* Protects sensitive routes using middleware
+**Start frontend (React app)**
+`cd ../client`
+`npm start`
+*(The client typically runs on http://localhost:3000)*
 
 ---
 
-## ⚡ Optional Features
+## ⚡ Future Enhancements
 
-* Socket.io integration for real-time notifications
-* Email notification service using Nodemailer
-* Admin role to manage users and holidays
-* Download leave history as PDF
+The following features are planned for future development:
 
----
-
-## 📸 Screenshots
-
-> Add screenshots of:
-
-* Login Page
-* Leave Application Form
-* Manager Dashboard
-* Notification Popup
-
----
-
-## 📈 Future Enhancements
-
-* Multi-language support
-* Attendance integration
-* Export reports to Excel
-* Admin approval workflow
+* **Admin Role:** Dedicated admin role to manage users, roles, and system-wide settings/holidays.
+* **Email Service:** Integration of **Nodemailer** for email notifications on status changes.
+* **Reporting:** Functionality to download leave history as **PDF** or export reports to **Excel**.
+* **Localization:** Multi-language (i18n) support.
+* **Attendance Integration:** Linking leave with daily attendance records.
 
 ---
 
 ## 🤝 Contribution Guidelines
 
-1. Fork this repo
-2. Create your feature branch: `git checkout -b feature-name`
-3. Commit your changes: `git commit -am 'Add new feature'`
-4. Push to the branch: `git push origin feature-name`
-5. Submit a pull request
+Contributions are welcome! If you have a suggestion or a fix, please follow these steps:
+
+1.  **Fork** the repository.
+2.  Create your feature branch using a command like: `git checkout -b feature-name`.
+3.  Commit your changes using a clear message, for example: `git commit -am 'Add new feature'`.
+4.  Push your changes to your feature branch: `git push origin feature-name`.
+5.  Open a **Pull Request** to the main repository.
 
 ---
-
-## 💬 Contact
-
-**Developer:** Mantu
-**Email:** [mantukumar87586299@gmail.com](mailto:mantukumar87586299@gmail.com)
-**GitHub:** [github.com/Mantu008](https://github.com/Mantu008)
-
----
-
